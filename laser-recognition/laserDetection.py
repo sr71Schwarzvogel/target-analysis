@@ -21,11 +21,11 @@ while (videoRunning):
         kernel = np.ones((3, 3), np.uint8)
         dilation = cv2.dilate(mask, kernel, iterations=1)
 
-        # opening
+        # dilation
         kernel = np.ones((7, 7), np.uint8)
         cleaned_mask = cv2.morphologyEx(dilation, cv2.MORPH_OPEN, kernel)
 
-        # get middle coordinates of white
+        # get middle coordinates of laser
         nonzero = np.argwhere(cleaned_mask == 255)
         x_sum = 0
         y_sum = 0
