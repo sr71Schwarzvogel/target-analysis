@@ -5,11 +5,15 @@ import os
 
 
 def store_raw_images():
-    neg_images_link = 'http://image-net.org/api/text/imagenet.synset.geturls?wnid=n03956922'
-    #plant (flower) http://image-net.org/api/text/imagenet.synset.geturls?wnid=n00017222
-    #plant (industrial) http://image-net.org/api/text/imagenet.synset.geturls?wnid=n03956922
+    neg_images_link = 'http://image-net.org/api/text/imagenet.synset.geturls?wnid=n02959942'
+    # plant (flower) http://image-net.org/api/text/imagenet.synset.geturls?wnid=n00017222
+    # plant (industrial) http://image-net.org/api/text/imagenet.synset.geturls?wnid=n03956922
+    # http://image-net.org/api/text/imagenet.synset.geturls?wnid=n03956922
+    # car (general) http://image-net.org/api/text/imagenet.synset.geturls?wnid=n02958343
+    # railway http://image-net.org/api/text/imagenet.synset.geturls?wnid=n02959942
+
     neg_image_urls = urllib.request.urlopen(neg_images_link).read().decode()
-    pic_num = 1233
+    pic_num = 2977
 
     if not os.path.exists('neg'):
         os.makedirs('neg')
