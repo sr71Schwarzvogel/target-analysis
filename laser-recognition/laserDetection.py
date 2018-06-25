@@ -6,15 +6,15 @@ nonzero = [1]
 laserTrack = []
 
 # Read Video
-cap = cv2.VideoCapture('test-pictures/laser-test-video-1.mp4')
+cap = cv2.VideoCapture('test-pictures/shot_video_1.mp4')
 
 videoRunning = True
 while (videoRunning):
     try:
         _, im = cap.read()
         im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-
-        mask = cv2.inRange(im, 220, 255)
+        im = im[280:580, 630:970]
+        mask = cv2.inRange(im, 250, 255)
 
         # cleaning the mask
         # closing
@@ -58,7 +58,7 @@ while (videoRunning):
                 cv2.line(im, (p1[1], p1[0]), (p2[1], p2[0]), (255, 0, 0), 2)
 
         cv2.imshow("original", im)
-        # cv2.imshow("cleaned_mask", cleaned_mask)
+        cv2.imshow("cleaned_mask", cleaned_mask)
         # cv2.imshow("movement", draw_pic)
 
         k = cv2.waitKey(5) & 0xFF
