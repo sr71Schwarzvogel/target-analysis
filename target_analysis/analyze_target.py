@@ -3,6 +3,8 @@ import cv2
 # cap = cv2.VideoCapture(1)
 cap = cv2.VideoCapture('test-pictures/shot_video_1.mp4')
 
+#target_cascade = cv2.CascadeClassifier('cascade 1.xml')
+
 contour_list = []
 contour_rec_counter = 0
 x_min = 10000
@@ -16,6 +18,8 @@ while 1:
 
     _,raw_image = cap.read()
     # raw_image = cv2.imread('test-pictures/shot_target_20.jpg')
+
+
 
     # find edges
     bilateral_filtered_image = cv2.bilateralFilter(raw_image, 5, 175, 175)
@@ -47,6 +51,22 @@ while 1:
     # calculate center of target
     x_middle = int((x_max - x_min) / 2 + x_min)
     y_middle = int((y_max - y_min) / 2 + y_min)
+
+    # TODO redo cascade with new target
+    # run cascade
+    # gray = cv2.cvtColor(raw_image, cv2.COLOR_BGR2GRAY)
+    # argets = target_cascade.detectMultiScale(gray, 1.3, 5)
+
+    # for (x, y, w, h) in targets:
+    #     if x < x_max
+
+    #    cv2.rectangle(img, (x, y), (x + w, y + h), (255, 0, 0), 2)
+
+
+
+
+
+
 
     # draw relevant findings
     cv2.drawContours(raw_image, contour_list, -1, (255, 0, 255), 3)
