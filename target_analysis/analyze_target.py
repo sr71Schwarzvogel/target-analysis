@@ -1,4 +1,5 @@
 import cv2
+import numpy as np
 
 # cap = cv2.VideoCapture(1)
 cap = cv2.VideoCapture('shot_video_1.mp4')
@@ -15,6 +16,7 @@ x_middle = 0
 y_middle = 0
 frame_number = 1
 relevant_image = []
+bullet_holes = []
 
 while 1:
 
@@ -22,7 +24,7 @@ while 1:
     # raw_image = cv2.imread('test-pictures/shot_target_20.jpg')
 
     # on the first frame the camera is 2 focused on the relevant area
-    if frame_number == 30:  # TODO check in the end if it works to set the middle for every frame
+    if frame_number == 1:  # TODO check in the end if it works to set the middle for every frame
         # find edges
         bilateral_filtered_image = cv2.bilateralFilter(raw_image, 5, 175, 175)
         edge_detected_image = cv2.Canny(bilateral_filtered_image, 75, 200)
@@ -34,7 +36,7 @@ while 1:
             approx = cv2.approxPolyDP(contour, 0.01 * cv2.arcLength(contour, True), True)
             area = cv2.contourArea(contour)
 
-            if (len(approx) > 10) &  (len(approx) < 30) & (area > 15000) & (area < 90000):
+            if (len(approx) > 10) & (len(approx) < 30) & (area > 15000) & (area < 90000):
                 contour_list.append(contour)
 
         # find min and max coordinate values of contures
@@ -67,11 +69,48 @@ while 1:
 
     # set relevant area
     if y_middle != 0:
-        relevant_image = raw_image[y_middle - 150: y_middle + 150, x_middle - 150: x_middle + 150]
+        relevant_image = raw_image[y_middle - 150: y_middle + 150, x_middle - 150: x_middle + 150].copy()
     else:
-        relevant_image = raw_image
+        relevant_image = raw_image.copy()
 
-    
+
+
+    # find bullet holes
+    # convert relevant area to hsv
+    hsv = cv2.cvtColor(relevant_image, cv2.COLOR_BGR2HSV)
+
+    # hsv hue sat value
+    lower_black = np.array([0, 0, 0])
+    upper_black = np.array([255, 255, 150])
+
+    # find black
+    mask = cv2.inRange(hsv, lower_black, upper_black)
+    res = cv2.bitwise_and(relevant_image, relevant_image, mask=mask)
+
+    # invert colors
+    mask_bulletholes = cv2.inRange(mask, 0, 100)
+
+    # Set up the detector with default parameters.
+    detector = cv2.SimpleBlobDetector_create()
+
+    # Detect blobs.
+    keypoints = detector.detect(mask_bulletholes)
+
+    # check if hole is already detected
+    for keypoint in keypoints:
+        exists = False
+        if bullet_holes == []:
+            bullet_holes.append((keypoint.pt[0], keypoint.pt[1]))
+        else:
+            for points in bullet_holes:
+                if ((points[0] - keypoint.pt[0]) ** 2 < 1000) & ((points[1] - keypoint.pt[1]) ** 2 < 1000):
+                    exists = True
+            if exists is False:
+                    bullet_holes.append((keypoint.pt[0], keypoint.pt[1]))
+
+    # draw bullet holes
+    for holes in bullet_holes:
+        cv2.circle(relevant_image,(int(holes[0]),int(holes[1])), 7, (0,255,0), 2)
 
 
 
@@ -82,8 +121,11 @@ while 1:
 
     cv2.imshow('relevant range', relevant_image)
     cv2.imshow('raw image', raw_image)
+    cv2.imshow('mask bullet holes', mask_bulletholes)
+    # cv2.imshow('image with holes', im_with_keypoints)
     k = cv2.waitKey(30) & 0xff
     if k == 27:
         break
 
+print(bullet_holes)
 cv2.destroyAllWindows()
