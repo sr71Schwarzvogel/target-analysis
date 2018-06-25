@@ -4,6 +4,7 @@ import math
 
 # cap = cv2.VideoCapture(1)
 cap = cv2.VideoCapture('shot_video_1.mp4')
+# 25px ~ 1cm shot_video_1.mp4
 
 # target_cascade = cv2.CascadeClassifier('cascade 1.xml')
 
@@ -18,9 +19,21 @@ y_middle = 0
 frame_number = 1
 relevant_image = []
 bullet_holes = []
+nonzero = [1]
+laserTrack = []
+laser_correction_x = 0
+laser_correction_y = 0
+last_shot_x = 0
+last_shot_y = 0
+new_shot = False
+first_shot = False
+file = open("data.txt", "w")
+file.write("300" + "\n")
+file.write("300" + "\n")
 
 while 1:
-
+    new_shot = False
+    first_shot = False
     _,raw_image = cap.read()
     # raw_image = cv2.imread('test-pictures/shot_target_20.jpg')
 
@@ -100,29 +113,104 @@ while 1:
     # check if hole is already detected
     for keypoint in keypoints:
         exists = False
-        if bullet_holes is False:
-            x_diff = math.sqrt((x_middle - x_min - keypoint.pt[0]) ** 2)
-            y_diff = math.sqrt((y_middle - y_min - keypoint.pt[1]) ** 2)
+        if bullet_holes == []:  # TODO the 150 (coordinates of bullseye) dynamic
+            x_diff = math.sqrt((150 - keypoint.pt[0]) ** 2)
+            y_diff = math.sqrt((150 - y_min - keypoint.pt[1]) ** 2)
             diff = math.sqrt((x_diff ** 2) + (y_diff ** 2))
             bullet_holes.append((keypoint.pt[0], keypoint.pt[1], diff))
+            last_shot_x = keypoint.pt[0]
+            last_shot_y = keypoint.pt[1]
+            new_shot = True
+            first_shot = True
+            file.write(str(keypoint.pt[0]) + "," + str(keypoint.pt[1]) + "," + str(diff) + "\n")
+
         else:
             for points in bullet_holes:
                 if ((points[0] - keypoint.pt[0]) ** 2 < 1000) & ((points[1] - keypoint.pt[1]) ** 2 < 1000):
                     exists = True
-            if exists is False:
-                x_diff = math.sqrt((x_middle - x_min - keypoint.pt[0])**2)
-                y_diff = math.sqrt((y_middle - y_min - keypoint.pt[1]) ** 2)
+            if exists is False:  # TODO the 150 dynamic
+                x_diff = math.sqrt((150 - keypoint.pt[0])**2)
+                y_diff = math.sqrt((150 - keypoint.pt[1]) ** 2)
                 diff = math.sqrt((x_diff ** 2)+(y_diff ** 2))
                 bullet_holes.append((keypoint.pt[0], keypoint.pt[1], diff))
+                last_shot_x = keypoint.pt[0]
+                last_shot_y = keypoint.pt[1]
+                new_shot = True
+                file.write(str(keypoint.pt[0]) + "," + str(keypoint.pt[1]) + "," + str(diff) + "\n")
+
+
+
+    #detect laser
+    im = cv2.cvtColor(relevant_image, cv2.COLOR_BGR2GRAY)
+    mask = cv2.inRange(im, 250, 255)
+
+    # cleaning the mask
+    # closing
+    kernel = np.ones((3, 3), np.uint8)
+    dilation = cv2.dilate(mask, kernel, iterations=1)
+    # dilation
+    kernel = np.ones((7, 7), np.uint8)
+    cleaned_mask = cv2.morphologyEx(dilation, cv2.MORPH_OPEN, kernel)
+
+    # get middle coordinates of laser
+    nonzero = np.argwhere(cleaned_mask == 255)
+    x_sum = 0
+    y_sum = 0
+    x = 0
+    y = 0
+    z_counter = 1
+
+    for z in nonzero:
+        x_sum = x_sum + z[0]
+        y_sum = y_sum + z[1]
+        z_counter = z_counter + 1
+
+    if x_sum != 0:
+        z_counter = z_counter - 1
+        x = (x_sum / z_counter) + laser_correction_x
+        y = (y_sum / z_counter) + laser_correction_y
+
+        # round up coordinates
+        x = math.ceil(x)
+        y = math.ceil(y)
+
+        if new_shot is False:
+            file.write(str(x) + "," + str(y) + "\n")
+
+        laserTrack.append([x, y])
+        print("f " + str(first_shot))
+        if first_shot is True:
+            print("x")
+            laser_correction_x = (x - last_shot_x)/2  # TODO calculate the laser correction for every shot
+            laser_correction_y = (y - last_shot_y)/2
+
+            for points in laserTrack:
+                print("y")
+                points[0] = points[0] + laser_correction_x
+                points[1] = points[1] + laser_correction_y
+
+
+
+
+    # draw line on image
+    s = len(laserTrack)
+    if s > 2:
+        for i in range(1, s):
+            p1 = laserTrack[i - 1]
+            p2 = laserTrack[i]
+            cv2.line(relevant_image, (int(p1[1]), int(p1[0])), (int(p2[1]), int(p2[0])), (255, 0, 0), 2)
 
     # draw bullet holes
     for holes in bullet_holes:
-        cv2.circle(relevant_image,(int(holes[0]),int(holes[1])), 7, (0,255,0), 2)
+        cv2.circle(relevant_image, (int(holes[0]),int(holes[1])), 7, (0,255,0), 2)
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        cv2.putText(relevant_image, str(int(holes[2]/2.5)), (int(holes[0]),int(holes[1])), font, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
 
     # draw relevant findings
     cv2.drawContours(raw_image, contour_list, -1, (255, 0, 255), 3)
     cv2.rectangle(raw_image,(x_min,y_min),(x_max,y_max),(255,0,0),2)
     cv2.circle(raw_image,(x_middle,y_middle), 2, (0,0,255), 1)
+    cv2.circle(relevant_image, (x_middle, y_middle), 2, (0, 0, 255), 1)
 
     cv2.imshow('relevant range', relevant_image)
     cv2.imshow('raw image', raw_image)
@@ -133,4 +221,5 @@ while 1:
         break
 
 print(bullet_holes)
+file.close()
 cv2.destroyAllWindows()
