@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import math
 
 # cap = cv2.VideoCapture(1)
 cap = cv2.VideoCapture('shot_video_1.mp4')
@@ -99,20 +100,24 @@ while 1:
     # check if hole is already detected
     for keypoint in keypoints:
         exists = False
-        if bullet_holes == []:
-            bullet_holes.append((keypoint.pt[0], keypoint.pt[1]))
+        if bullet_holes is False:
+            x_diff = math.sqrt((x_middle - x_min - keypoint.pt[0]) ** 2)
+            y_diff = math.sqrt((y_middle - y_min - keypoint.pt[1]) ** 2)
+            diff = math.sqrt((x_diff ** 2) + (y_diff ** 2))
+            bullet_holes.append((keypoint.pt[0], keypoint.pt[1], diff))
         else:
             for points in bullet_holes:
                 if ((points[0] - keypoint.pt[0]) ** 2 < 1000) & ((points[1] - keypoint.pt[1]) ** 2 < 1000):
                     exists = True
             if exists is False:
-                    bullet_holes.append((keypoint.pt[0], keypoint.pt[1]))
+                x_diff = math.sqrt((x_middle - x_min - keypoint.pt[0])**2)
+                y_diff = math.sqrt((y_middle - y_min - keypoint.pt[1]) ** 2)
+                diff = math.sqrt((x_diff ** 2)+(y_diff ** 2))
+                bullet_holes.append((keypoint.pt[0], keypoint.pt[1], diff))
 
     # draw bullet holes
     for holes in bullet_holes:
         cv2.circle(relevant_image,(int(holes[0]),int(holes[1])), 7, (0,255,0), 2)
-
-
 
     # draw relevant findings
     cv2.drawContours(raw_image, contour_list, -1, (255, 0, 255), 3)
