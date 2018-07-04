@@ -23,8 +23,8 @@ def find_uglies():
 # method to resize and recolor (gray) a single image
 def resize_positive():
 
-    img = cv2.imread("pos/target positive 2.jpg", cv2.IMREAD_GRAYSCALE)
+    img = cv2.imread("pos/target positive 3.jpg", cv2.IMREAD_GRAYSCALE)
     resized_image = cv2.resize(img, (50, 50))
-    cv2.imwrite("pos/target positive 2 50x50G.jpg", resized_image)
+    cv2.imwrite("pos/target positive 3 50x50G.jpg", resized_image)
 
-find_uglies()
+resize_positive()

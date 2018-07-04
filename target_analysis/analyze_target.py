@@ -6,7 +6,7 @@ import math
 cap = cv2.VideoCapture('shot_video_1.mp4')
 # 25px ~ 1cm shot_video_1.mp4
 
-# target_cascade = cv2.CascadeClassifier('cascade 1.xml')
+target_cascade = cv2.CascadeClassifier('cascade 5.xml')
 
 contour_list = []
 contour_rec_counter = 0
@@ -27,6 +27,8 @@ last_shot_x = 0
 last_shot_y = 0
 new_shot = False
 first_shot = False
+targets =[]
+relevant_targets = []
 file = open("data.txt", "w")
 file.write("300" + "\n")
 file.write("300" + "\n")
@@ -38,7 +40,7 @@ while 1:
     # raw_image = cv2.imread('test-pictures/shot_target_20.jpg')
 
     # on the first frame the camera is 2 focused on the relevant area
-    if frame_number == 1:  # TODO check in the end if it works to set the middle for every frame
+    if frame_number == 1:
         # find edges
         bilateral_filtered_image = cv2.bilateralFilter(raw_image, 5, 175, 175)
         edge_detected_image = cv2.Canny(bilateral_filtered_image, 75, 200)
@@ -70,24 +72,23 @@ while 1:
         x_middle = int((x_max - x_min) / 2 + x_min)
         y_middle = int((y_max - y_min) / 2 + y_min)
 
-        # TODO redo cascade with new target
-        # TODO run cascade an combine to relevant area
-        # gray = cv2.cvtColor(raw_image, cv2.COLOR_BGR2GRAY)
-        # argets = target_cascade.detectMultiScale(gray, 1.3, 5)
+        # run haar detection
+        gray = cv2.cvtColor(raw_image, cv2.COLOR_BGR2GRAY)
+        targets = target_cascade.detectMultiScale(gray, 1.3, 5)
 
-        # for (x, y, w, h) in targets:
-        #     if x < x_max
-
-        #    cv2.rectangle(img, (x, y), (x + w, y + h), (255, 0, 0), 2)
     frame_number = frame_number + 1
+
+    for (x, y, w, h) in targets:
+        x_temp = x + w/2
+        y_temp = y + h/2
+        if (x_temp > x_middle - 100) & (x_temp < x_middle + 100) & (y_temp > y_middle - 100) & (y_temp < y_middle + 100):
+            relevant_targets.append((x, y, w, h))
 
     # set relevant area
     if y_middle != 0:
         relevant_image = raw_image[y_middle - 150: y_middle + 150, x_middle - 150: x_middle + 150].copy()
     else:
         relevant_image = raw_image.copy()
-
-
 
     # find bullet holes
     # convert relevant area to hsv
@@ -113,7 +114,7 @@ while 1:
     # check if hole is already detected
     for keypoint in keypoints:
         exists = False
-        if bullet_holes == []:  # TODO the 150 (coordinates of bullseye) dynamic
+        if bullet_holes == []:
             x_diff = math.sqrt((150 - keypoint.pt[0]) ** 2)
             y_diff = math.sqrt((150 - y_min - keypoint.pt[1]) ** 2)
             diff = math.sqrt((x_diff ** 2) + (y_diff ** 2))
@@ -122,13 +123,13 @@ while 1:
             last_shot_y = keypoint.pt[1]
             new_shot = True
             first_shot = True
-            file.write(str(keypoint.pt[0]) + "," + str(keypoint.pt[1]) + "," + str(diff) + "\n")
+            file.write(str(keypoint.pt[1]) + "," + str(keypoint.pt[0]) + "," + str(diff) + "\n")
 
         else:
             for points in bullet_holes:
                 if ((points[0] - keypoint.pt[0]) ** 2 < 1000) & ((points[1] - keypoint.pt[1]) ** 2 < 1000):
                     exists = True
-            if exists is False:  # TODO the 150 dynamic
+            if exists is False:
                 x_diff = math.sqrt((150 - keypoint.pt[0])**2)
                 y_diff = math.sqrt((150 - keypoint.pt[1]) ** 2)
                 diff = math.sqrt((x_diff ** 2)+(y_diff ** 2))
@@ -136,9 +137,7 @@ while 1:
                 last_shot_x = keypoint.pt[0]
                 last_shot_y = keypoint.pt[1]
                 new_shot = True
-                file.write(str(keypoint.pt[0]) + "," + str(keypoint.pt[1]) + "," + str(diff) + "\n")
-
-
+                file.write(str(keypoint.pt[1]) + "," + str(keypoint.pt[0]) + "," + str(diff) + "\n")
 
     #detect laser
     im = cv2.cvtColor(relevant_image, cv2.COLOR_BGR2GRAY)
@@ -178,19 +177,13 @@ while 1:
             file.write(str(x) + "," + str(y) + "\n")
 
         laserTrack.append([x, y])
-        print("f " + str(first_shot))
         if first_shot is True:
-            print("x")
-            laser_correction_x = (x - last_shot_x)/2  # TODO calculate the laser correction for every shot
+            laser_correction_x = (x - last_shot_x)/2
             laser_correction_y = (y - last_shot_y)/2
 
             for points in laserTrack:
-                print("y")
                 points[0] = points[0] + laser_correction_x
                 points[1] = points[1] + laser_correction_y
-
-
-
 
     # draw line on image
     s = len(laserTrack)
@@ -198,19 +191,24 @@ while 1:
         for i in range(1, s):
             p1 = laserTrack[i - 1]
             p2 = laserTrack[i]
-            cv2.line(relevant_image, (int(p1[1]), int(p1[0])), (int(p2[1]), int(p2[0])), (255, 0, 0), 2)
+            cv2.line(relevant_image, (int(p1[1]), int(p1[0])), (int(p2[1]), int(p2[0])), (255, 0, 0), 2)  # draw laser track
 
     # draw bullet holes
     for holes in bullet_holes:
-        cv2.circle(relevant_image, (int(holes[0]),int(holes[1])), 7, (0,255,0), 2)
+        cv2.circle(raw_image, (int(holes[0]+x_middle-150), int(holes[1]+y_middle-150)), 7, (0, 255, 0), 2)  # bullet holes
         font = cv2.FONT_HERSHEY_SIMPLEX
-        cv2.putText(relevant_image, str(int(holes[2]/2.5)), (int(holes[0]),int(holes[1])), font, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(relevant_image, str(int(holes[2]/2.5)), (int(holes[0]), int(holes[1])), font, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
 
     # draw relevant findings
-    cv2.drawContours(raw_image, contour_list, -1, (255, 0, 255), 3)
-    cv2.rectangle(raw_image,(x_min,y_min),(x_max,y_max),(255,0,0),2)
-    cv2.circle(raw_image,(x_middle,y_middle), 2, (0,0,255), 1)
-    cv2.circle(relevant_image, (x_middle, y_middle), 2, (0, 0, 255), 1)
+    cv2.drawContours(raw_image, contour_list, -1, (255, 0, 255), 3)  # Lilac circles - biggest circle
+    cv2.rectangle(raw_image,(x_min,y_min),(x_max,y_max),(255,0,0),2)  # blue rectangle - rectangle around inner circle
+    cv2.circle(raw_image, (x_middle, y_middle), 2, (0, 0, 255), 1)  # red circle - middle of target
+    cv2.circle(relevant_image, (x_middle, y_middle), 2, (0, 0, 255), 1)  # red circle
+
+    for (x, y, w, h) in relevant_targets:
+        if x < x_max:
+            print("x")
+            cv2.rectangle(raw_image, (x, y), (x + w, y + h), (255, 255, 0), 2)  # turquois rectangle relevant haar matches
 
     cv2.imshow('relevant range', relevant_image)
     cv2.imshow('raw image', raw_image)
@@ -220,6 +218,5 @@ while 1:
     if k == 27:
         break
 
-print(bullet_holes)
 file.close()
 cv2.destroyAllWindows()
